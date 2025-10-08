@@ -1,9 +1,106 @@
-import { ArrowRight, CheckCircle, Zap, Target, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowRight, CheckCircle, Zap, Target, TrendingUp, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Card from '../components/Card';
 import FlowDiagram from '../components/FlowDiagram';
+import { getWizardResponses, isWizardCompleted, clearWizardResponses, loadFromSupabase } from '../utils/wizardStorage';
+import { getRecommendedTools, getPersonalizedTemplates, getAutomationFlow, getDeliverabilityTips } from '../utils/contentFilter';
+import RecommendedTools from '../components/dashboard/RecommendedTools';
+import EmailTemplates from '../components/dashboard/EmailTemplates';
+import AutomationFlow from '../components/dashboard/AutomationFlow';
+import DeliverabilityTips from '../components/dashboard/DeliverabilityTips';
 
 export default function Home() {
+  const [wizardComplete, setWizardComplete] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [responses, setResponses] = useState<any>(null);
+
+  useEffect(() => {
+    const loadUserData = async () => {
+      setLoading(true);
+
+      let userResponses = getWizardResponses();
+
+      if (!userResponses) {
+        userResponses = await loadFromSupabase();
+      }
+
+      if (userResponses && isWizardCompleted()) {
+        setResponses(userResponses);
+        setWizardComplete(true);
+      }
+
+      setLoading(false);
+    };
+
+    loadUserData();
+  }, []);
+
+  const handleResetWizard = () => {
+    if (confirm('Are you sure you want to restart the setup wizard? Your current personalization will be reset.')) {
+      clearWizardResponses();
+      setWizardComplete(false);
+      setResponses(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (wizardComplete && responses) {
+    const recommendedTools = getRecommendedTools(responses);
+    const templates = getPersonalizedTemplates(responses);
+    const automationSteps = getAutomationFlow(responses);
+    const deliverabilityTips = getDeliverabilityTips(responses);
+
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                Your Personalized Dashboard
+              </h1>
+              <p className="text-lg text-gray-600">
+                Goal: <span className="font-semibold text-blue-600">{responses.goal}</span>
+                {responses.niche && <span> • Industry: <span className="font-semibold text-blue-600">{responses.niche}</span></span>}
+              </p>
+            </div>
+            <button
+              onClick={handleResetWizard}
+              className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Restart Setup</span>
+            </button>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-6 mb-6">
+            <RecommendedTools tools={recommendedTools} />
+            <EmailTemplates templates={templates} />
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <AutomationFlow steps={automationSteps} />
+            </div>
+            <div>
+              <DeliverabilityTips tips={deliverabilityTips} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const features = [
     {
       icon: Target,
