@@ -7,30 +7,39 @@ export interface ChatMessage {
 
 export async function sendChatMessage(messages: ChatMessage[]): Promise<string> {
   if (!OPENAI_API_KEY) {
+    console.error('OpenAI API key is missing or empty');
     throw new Error('OpenAI API key not configured');
   }
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: 'gpt-3.5-turbo',
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 500
-    })
-  });
+  console.log('API Key present:', OPENAI_API_KEY.substring(0, 10) + '...');
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Failed to get AI response');
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 500
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('OpenAI API Error:', error);
+      throw new Error(error.error?.message || `API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content || 'No response generated';
+  } catch (error) {
+    console.error('Full error details:', error);
+    throw error;
   }
-
-  const data = await response.json();
-  return data.choices[0]?.message?.content || 'No response generated';
 }
 
 export const systemPrompt = `You are an expert cold email consultant helping users build their cold email system. You have deep knowledge about:
